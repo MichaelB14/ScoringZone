@@ -231,12 +231,33 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 8px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-left: 10px;
+            transition: background 0.3s;
+        }
+
+        .delete-btn:hover {
+            background: #c82333;
+        }
+
         .history-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 10px;
             font-weight: bold;
+        }
+
+        .history-header > div {
+            display: flex;
+            align-items: center;
         }
 
         .history-stats {
@@ -391,6 +412,7 @@
                             <button class="toggle-btn" data-stat="100yd" onclick="toggleStat(this)">100yd ✓</button>
                             <button class="toggle-btn" data-stat="50yd" onclick="toggleStat(this)">50yd ✓</button>
                             <button class="toggle-btn" data-stat="25yd" onclick="toggleStat(this)">25yd ✓</button>
+                            <button class="toggle-btn" data-stat="gir" onclick="toggleStat(this)">GIR ✓</button>
                         </div>
                     </div>
 
@@ -398,7 +420,7 @@
                         <h4>Performance</h4>
                         <div class="toggle-buttons">
                             <button class="toggle-btn" data-stat="fairway" onclick="toggleStat(this)">Fairway Hit</button>
-                            <button class="toggle-btn" data-stat="green" onclick="toggleStat(this)">Green in Reg</button>
+                            <button class="toggle-btn" data-stat="chipOn" onclick="toggleStat(this)">Chip On</button>
                             <button class="toggle-btn" data-stat="downIn3" onclick="toggleStat(this)">Down in 3</button>
                         </div>
                     </div>
@@ -568,8 +590,10 @@
                 '100yd': document.querySelector('[data-stat="100yd"]').classList.contains('active'),
                 '50yd': document.querySelector('[data-stat="50yd"]').classList.contains('active'),
                 '25yd': document.querySelector('[data-stat="25yd"]').classList.contains('active'),
+                gir: document.querySelector('[data-stat="gir"]').classList.contains('active'),
                 fairway: document.querySelector('[data-stat="fairway"]').classList.contains('active'),
-                green: document.querySelector('[data-stat="green"]').classList.contains('active'),
+                green: document.querySelector('[data-stat="gir"]').classList.contains('active'), // Use GIR for green tracking
+                chipOn: document.querySelector('[data-stat="chipOn"]').classList.contains('active'),
                 downIn3: document.querySelector('[data-stat="downIn3"]').classList.contains('active'),
                 drops: document.querySelector('[data-stat="drops"]').classList.contains('bad') ? 1 : 0,
                 topped: document.querySelector('[data-stat="topped"]').classList.contains('bad') ? 1 : 0,
@@ -606,7 +630,7 @@
             const totalScore = holes.reduce((sum, hole) => sum + hole.score, 0);
             const totalPutts = holes.reduce((sum, hole) => sum + hole.putts, 0);
             const fairwaysHit = holes.filter(hole => hole.fairway).length;
-            const greensHit = holes.filter(hole => hole.green).length;
+            const greensHit = holes.filter(hole => hole.gir).length; // Use gir instead of green
             const reg100Hit = holes.filter(hole => hole['100yd']).length;
             const reg50Hit = holes.filter(hole => hole['50yd']).length;
             const reg25Hit = holes.filter(hole => hole['25yd']).length;
@@ -667,6 +691,7 @@
                 reg50: holes.filter(hole => hole['50yd']).length,
                 reg25: holes.filter(hole => hole['25yd']).length,
                 downIn3: holes.filter(hole => hole.downIn3).length,
+                chipOn: holes.filter(hole => hole.chipOn).length,
                 drops: holes.reduce((sum, hole) => sum + hole.drops, 0),
                 topped: holes.reduce((sum, hole) => sum + hole.topped, 0),
                 shortPutts: holes.reduce((sum, hole) => sum + hole.shortPutts, 0),
@@ -720,11 +745,14 @@
                 return;
             }
 
-            historyList.innerHTML = rounds.map(round => `
+            historyList.innerHTML = rounds.map((round, index) => `
                 <div class="history-item">
                     <div class="history-header">
                         <span>${round.courseName}</span>
-                        <span>${new Date(round.date).toLocaleDateString()}</span>
+                        <div>
+                            <span>${new Date(round.date).toLocaleDateString()}</span>
+                            <button class="delete-btn" onclick="deleteRound(${index})" title="Delete round">🗑️</button>
+                        </div>
                     </div>
                     <div class="history-stats">
                         <div class="stat-item">
@@ -748,12 +776,34 @@
                             <span>${round.downIn3}/18</span>
                         </div>
                         <div class="stat-item">
+                            <span>Chip On:</span>
+                            <span>${round.chipOn || 0}/18</span>
+                        </div>
+                        <div class="stat-item">
                             <span>100yd Reg:</span>
                             <span>${round.reg100}/18</span>
+                        </div>
+                        <div class="stat-item">
+                            <span>Holes Played:</span>
+                            <span>${Object.keys(round.holes || {}).length}/18</span>
+                        </div>
+                        <div class="stat-item">
+                            <span>Short Putts Missed:</span>
+                            <span>${round.shortPutts}</span>
                         </div>
                     </div>
                 </div>
             `).join('');
+        }
+
+        function deleteRound(index) {
+            if (confirm('Delete this round? This cannot be undone.')) {
+                let rounds = JSON.parse(localStorage.getItem('golfRounds') || '[]');
+                rounds.splice(index, 1);
+                localStorage.setItem('golfRounds', JSON.stringify(rounds));
+                loadHistory();
+                loadTrends();
+            }
         }
 
         function loadTrends() {
@@ -764,16 +814,16 @@
             if (rounds.length === 0) {
                 // Sample data for demonstration
                 const sampleRounds = [
-                    { score: 89, putts: 34, fairways: 7, greens: 5, downIn3: 11, reg100: 13, reg50: 9, reg25: 6, drops: 2, topped: 1, shortPutts: 4 },
-                    { score: 92, putts: 36, fairways: 6, greens: 4, downIn3: 10, reg100: 12, reg50: 8, reg25: 5, drops: 3, topped: 2, shortPutts: 3 },
-                    { score: 87, putts: 32, fairways: 9, greens: 7, downIn3: 13, reg100: 15, reg50: 11, reg25: 8, drops: 1, topped: 0, shortPutts: 6 },
-                    { score: 85, putts: 33, fairways: 8, greens: 6, downIn3: 12, reg100: 14, reg50: 10, reg25: 7, drops: 1, topped: 1, shortPutts: 5 },
-                    { score: 91, putts: 35, fairways: 5, greens: 3, downIn3: 9, reg100: 11, reg50: 7, reg25: 4, drops: 4, topped: 2, shortPutts: 2 },
-                    { score: 83, putts: 31, fairways: 10, greens: 8, downIn3: 14, reg100: 16, reg50: 12, reg25: 9, drops: 0, topped: 0, shortPutts: 7 },
-                    { score: 88, putts: 33, fairways: 7, greens: 5, downIn3: 11, reg100: 13, reg50: 9, reg25: 6, drops: 2, topped: 1, shortPutts: 4 },
-                    { score: 86, putts: 32, fairways: 8, greens: 6, downIn3: 12, reg100: 14, reg50: 10, reg25: 7, drops: 1, topped: 1, shortPutts: 5 },
-                    { score: 94, putts: 37, fairways: 4, greens: 2, downIn3: 8, reg100: 10, reg50: 6, reg25: 3, drops: 5, topped: 3, shortPutts: 1 },
-                    { score: 90, putts: 34, fairways: 6, greens: 4, downIn3: 10, reg100: 12, reg50: 8, reg25: 5, drops: 3, topped: 2, shortPutts: 3 }
+                    { score: 89, putts: 34, fairways: 7, greens: 5, downIn3: 11, chipOn: 6, reg100: 13, reg50: 9, reg25: 6, drops: 2, topped: 1, shortPutts: 4 },
+                    { score: 92, putts: 36, fairways: 6, greens: 4, downIn3: 10, chipOn: 5, reg100: 12, reg50: 8, reg25: 5, drops: 3, topped: 2, shortPutts: 3 },
+                    { score: 87, putts: 32, fairways: 9, greens: 7, downIn3: 13, chipOn: 8, reg100: 15, reg50: 11, reg25: 8, drops: 1, topped: 0, shortPutts: 6 },
+                    { score: 85, putts: 33, fairways: 8, greens: 6, downIn3: 12, chipOn: 7, reg100: 14, reg50: 10, reg25: 7, drops: 1, topped: 1, shortPutts: 5 },
+                    { score: 91, putts: 35, fairways: 5, greens: 3, downIn3: 9, chipOn: 4, reg100: 11, reg50: 7, reg25: 4, drops: 4, topped: 2, shortPutts: 2 },
+                    { score: 83, putts: 31, fairways: 10, greens: 8, downIn3: 14, chipOn: 9, reg100: 16, reg50: 12, reg25: 9, drops: 0, topped: 0, shortPutts: 7 },
+                    { score: 88, putts: 33, fairways: 7, greens: 5, downIn3: 11, chipOn: 6, reg100: 13, reg50: 9, reg25: 6, drops: 2, topped: 1, shortPutts: 4 },
+                    { score: 86, putts: 32, fairways: 8, greens: 6, downIn3: 12, chipOn: 7, reg100: 14, reg50: 10, reg25: 7, drops: 1, topped: 1, shortPutts: 5 },
+                    { score: 94, putts: 37, fairways: 4, greens: 2, downIn3: 8, chipOn: 3, reg100: 10, reg50: 6, reg25: 3, drops: 5, topped: 3, shortPutts: 1 },
+                    { score: 90, putts: 34, fairways: 6, greens: 4, downIn3: 10, chipOn: 5, reg100: 12, reg50: 8, reg25: 5, drops: 3, topped: 2, shortPutts: 3 }
                 ];
                 
                 displayTrends(sampleRounds, true);
@@ -798,7 +848,7 @@
             
             // Calculate percentage-based stats from all holes played (including partial rounds)
             let totalHolesPlayed = 0;
-            let totalFairways = 0, totalGreens = 0, totalDownIn3 = 0;
+            let totalFairways = 0, totalGreens = 0, totalDownIn3 = 0, totalChipOn = 0;
             let totalReg100 = 0, totalReg50 = 0, totalReg25 = 0;
             let totalDrops = 0, totalTopped = 0, totalShortPutts = 0;
             
@@ -820,10 +870,10 @@
             const fairwayPct = totalHolesPlayed > 0 ? (totalFairways / totalHolesPlayed * 100) : 0;
             const greenPct = totalHolesPlayed > 0 ? (totalGreens / totalHolesPlayed * 100) : 0;
             const downIn3Pct = totalHolesPlayed > 0 ? (totalDownIn3 / totalHolesPlayed * 100) : 0;
+            const chipOnPct = totalHolesPlayed > 0 ? (totalChipOn / totalHolesPlayed * 100) : 0;
             const reg100Pct = totalHolesPlayed > 0 ? (totalReg100 / totalHolesPlayed * 100) : 0;
             const reg50Pct = totalHolesPlayed > 0 ? (totalReg50 / totalHolesPlayed * 100) : 0;
             const reg25Pct = totalHolesPlayed > 0 ? (totalReg25 / totalHolesPlayed * 100) : 0;
-            
             // Calculate per-round averages for troubles
             const avgDropsPerRound = allRounds.length > 0 ? totalDrops / allRounds.length : 0;
             const avgToppedPerRound = allRounds.length > 0 ? totalTopped / allRounds.length : 0;
@@ -875,6 +925,10 @@
                 <div class="trend-item">
                     <span>Down in 3</span>
                     <span class="trend-value">${totalDownIn3}/${totalHolesPlayed} (${downIn3Pct.toFixed(0)}%)</span>
+                </div>
+                <div class="trend-item">
+                    <span>Chip On (1 shot)</span>
+                    <span class="trend-value">${totalChipOn}/${totalHolesPlayed} (${chipOnPct.toFixed(0)}%)</span>
                 </div>
                 <div class="trend-item">
                     <span>100yd Regulation</span>
