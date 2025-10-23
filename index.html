@@ -547,16 +547,28 @@
 
         function populateCourseList() {
             const rounds = JSON.parse(localStorage.getItem('golfRounds') || '[]');
-            const courses = [...new Set(rounds.map(round => round.courseName))].sort();
+            const courses = [...new Set(rounds.map(round => round.courseName))].filter(name => name).sort();
             
             // Populate course input datalist
             const courseList = document.getElementById('courseList');
-            courseList.innerHTML = courses.map(course => `<option value="${course}">`).join('');
+            if (courseList) {
+                courseList.innerHTML = courses.map(course => `<option value="${course}">`).join('');
+            }
             
             // Populate course filter dropdown
             const courseFilter = document.getElementById('courseFilter');
-            courseFilter.innerHTML = '<option value="all">All Courses</option>' + 
-                courses.map(course => `<option value="${course}">${course}</option>`).join('');
+            if (courseFilter) {
+                const currentValue = courseFilter.value;
+                courseFilter.innerHTML = '<option value="all">All Courses</option>' + 
+                    courses.map(course => `<option value="${course}">${course}</option>`).join('');
+                
+                // Restore previous selection if it still exists
+                if (courses.includes(currentValue)) {
+                    courseFilter.value = currentValue;
+                } else {
+                    courseFilter.value = 'all';
+                }
+            }
         }
 
         function selectHole(holeNumber) {
@@ -792,7 +804,10 @@
             event.target.classList.add('active');
             
             if (tabName === 'history') loadHistory();
-            if (tabName === 'trends') loadTrends();
+            if (tabName === 'trends') {
+                populateCourseList(); // Update course filter when opening trends
+                loadTrends();
+            }
         }
 
         function loadHistory() {
@@ -860,6 +875,7 @@
                 let rounds = JSON.parse(localStorage.getItem('golfRounds') || '[]');
                 rounds.splice(index, 1);
                 localStorage.setItem('golfRounds', JSON.stringify(rounds));
+                populateCourseList(); // Update course lists after deletion
                 loadHistory();
                 loadTrends();
             }
@@ -971,9 +987,14 @@
             const partialRoundsNote = allRounds.length > completeRounds.length ? 
                 `<p style="text-align: center; color: #666; font-size: 14px; margin-bottom: 15px;">📈 Percentages include all ${totalHolesPlayed} holes played. Scoring averages from ${completeRounds.length} complete rounds only.</p>` : '';
 
+            // Debug info for chip on (remove this after fixing)
+            const debugNote = !isSample && totalChipOn > 0 ? 
+                `<p style="text-align: center; color: #999; font-size: 12px; margin-bottom: 10px;">Debug: totalChipOn=${totalChipOn}, totalHoles=${totalHolesPlayed}</p>` : '';
+
             trendsList.innerHTML = `
                 ${sampleNote}
                 ${partialRoundsNote}
+                ${debugNote}
                 <div class="trend-item">
                     <span>Average Score</span>
                     <span class="trend-value">${completeRounds.length > 0 ? avgScore.toFixed(1) : 'No complete rounds'}${scoreImprovement}</span>
