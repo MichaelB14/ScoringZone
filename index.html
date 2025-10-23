@@ -371,7 +371,10 @@
                 
                 <div class="form-group">
                     <label>Course Name</label>
-                    <input type="text" id="courseName" placeholder="Enter course name">
+                    <input type="text" id="courseName" placeholder="Type course name or select from list" list="courseList">
+                    <datalist id="courseList">
+                        <!-- Course options will be populated here -->
+                    </datalist>
                 </div>
 
                 <div class="form-group">
@@ -512,6 +515,12 @@
         <div id="trends" class="tab-content">
             <div class="trends">
                 <h2>Progress Trends</h2>
+                <div class="form-group">
+                    <label>Filter by Course</label>
+                    <select id="courseFilter" onchange="loadTrends()">
+                        <option value="all">All Courses</option>
+                    </select>
+                </div>
                 <div id="trendsList">
                     <!-- Trends will be populated here -->
                 </div>
@@ -533,7 +542,22 @@
             loadHistory();
             loadTrends();
             selectHole(1);
+            populateCourseList();
         });
+
+        function populateCourseList() {
+            const rounds = JSON.parse(localStorage.getItem('golfRounds') || '[]');
+            const courses = [...new Set(rounds.map(round => round.courseName))].sort();
+            
+            // Populate course input datalist
+            const courseList = document.getElementById('courseList');
+            courseList.innerHTML = courses.map(course => `<option value="${course}">`).join('');
+            
+            // Populate course filter dropdown
+            const courseFilter = document.getElementById('courseFilter');
+            courseFilter.innerHTML = '<option value="all">All Courses</option>' + 
+                courses.map(course => `<option value="${course}">${course}</option>`).join('');
+        }
 
         function selectHole(holeNumber) {
             selectedHole = holeNumber;
@@ -578,7 +602,38 @@
         }
 
         function toggleStat(button) {
+            const stat = button.getAttribute('data-stat');
             button.classList.toggle('active');
+            
+            // Auto-select logic for distance regulation
+            if (stat === 'gir' && button.classList.contains('active')) {
+                // If GIR is selected, automatically select 100yd, 50yd, and 25yd
+                document.querySelector('[data-stat="100yd"]').classList.add('active');
+                document.querySelector('[data-stat="50yd"]').classList.add('active');
+                document.querySelector('[data-stat="25yd"]').classList.add('active');
+            } else if (stat === '50yd' && button.classList.contains('active')) {
+                // If 50yd is selected, automatically select 100yd
+                document.querySelector('[data-stat="100yd"]').classList.add('active');
+            } else if (stat === '25yd' && button.classList.contains('active')) {
+                // If 25yd is selected, automatically select 50yd and 100yd
+                document.querySelector('[data-stat="50yd"]').classList.add('active');
+                document.querySelector('[data-stat="100yd"]').classList.add('active');
+            }
+            
+            // Deselection logic - if turning off a regulation, turn off the more restrictive ones
+            if (stat === '100yd' && !button.classList.contains('active')) {
+                // If 100yd is turned off, turn off 50yd and 25yd
+                document.querySelector('[data-stat="50yd"]').classList.remove('active');
+                document.querySelector('[data-stat="25yd"]').classList.remove('active');
+                document.querySelector('[data-stat="gir"]').classList.remove('active');
+            } else if (stat === '50yd' && !button.classList.contains('active')) {
+                // If 50yd is turned off, turn off 25yd and GIR
+                document.querySelector('[data-stat="25yd"]').classList.remove('active');
+                document.querySelector('[data-stat="gir"]').classList.remove('active');
+            } else if (stat === '25yd' && !button.classList.contains('active')) {
+                // If 25yd is turned off, turn off GIR
+                document.querySelector('[data-stat="gir"]').classList.remove('active');
+            }
         }
 
         function toggleBadStat(button) {
@@ -610,9 +665,12 @@
             // Update summary
             updateRoundSummary();
             
-            // Move to next hole if not on 18
+            // Move to next hole automatically
             if (selectedHole < 18) {
                 selectHole(selectedHole + 1);
+            } else {
+                // If on hole 18, just stay there but show it's completed
+                alert('Hole 18 completed! Ready to save your round.');
             }
         }
 
@@ -713,6 +771,7 @@
             updateRoundSummary();
 
             alert('Round saved successfully!');
+            populateCourseList(); // Update course lists
             loadHistory();
             loadTrends();
         }
@@ -808,10 +867,14 @@
 
         function loadTrends() {
             const rounds = JSON.parse(localStorage.getItem('golfRounds') || '[]');
-            const trendsList = document.getElementById('trendsList');
+            const courseFilter = document.getElementById('courseFilter');
+            const selectedCourse = courseFilter ? courseFilter.value : 'all';
+            
+            // Filter rounds by selected course
+            const filteredRounds = selectedCourse === 'all' ? rounds : rounds.filter(round => round.courseName === selectedCourse);
             
             // Use sample data if no real data exists
-            if (rounds.length === 0) {
+            if (filteredRounds.length === 0 && rounds.length === 0) {
                 // Sample data for demonstration
                 const sampleRounds = [
                     { score: 89, putts: 34, fairways: 7, greens: 5, downIn3: 11, chipOn: 6, reg100: 13, reg50: 9, reg25: 6, drops: 2, topped: 1, shortPutts: 4 },
@@ -830,7 +893,12 @@
                 return;
             }
 
-            displayTrends(rounds, false);
+            if (filteredRounds.length === 0) {
+                document.getElementById('trendsList').innerHTML = `<p style="text-align: center; color: #666;">No rounds found for ${selectedCourse}</p>`;
+                return;
+            }
+
+            displayTrends(filteredRounds, false);
         }
 
         function displayTrends(rounds, isSample) {
