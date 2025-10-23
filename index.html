@@ -371,10 +371,10 @@
                 
                 <div class="form-group">
                     <label>Course Name</label>
-                    <input type="text" id="courseName" placeholder="Type course name or select from list" list="courseList">
-                    <datalist id="courseList">
-                        <!-- Course options will be populated here -->
-                    </datalist>
+                    <select id="courseSelect" onchange="selectCourse()">
+                        <option value="">Select a course or type new one...</option>
+                    </select>
+                    <input type="text" id="courseName" placeholder="Or type new course name" style="margin-top: 10px;">
                 </div>
 
                 <div class="form-group">
@@ -547,12 +547,13 @@
 
         function populateCourseList() {
             const rounds = JSON.parse(localStorage.getItem('golfRounds') || '[]');
-            const courses = [...new Set(rounds.map(round => round.courseName))].filter(name => name).sort();
+            const courses = [...new Set(rounds.map(round => round.courseName))].filter(name => name && name.trim()).sort();
             
-            // Populate course input datalist
-            const courseList = document.getElementById('courseList');
-            if (courseList) {
-                courseList.innerHTML = courses.map(course => `<option value="${course}">`).join('');
+            // Populate course select dropdown
+            const courseSelect = document.getElementById('courseSelect');
+            if (courseSelect) {
+                courseSelect.innerHTML = '<option value="">Select a course or type new one...</option>' + 
+                    courses.map(course => `<option value="${course}">${course}</option>`).join('');
             }
             
             // Populate course filter dropdown
@@ -568,6 +569,14 @@
                 } else {
                     courseFilter.value = 'all';
                 }
+            }
+        }
+
+        function selectCourse() {
+            const courseSelect = document.getElementById('courseSelect');
+            const courseName = document.getElementById('courseName');
+            if (courseSelect.value) {
+                courseName.value = courseSelect.value;
             }
         }
 
@@ -706,29 +715,44 @@
             const reg25Hit = holes.filter(hole => hole['25yd']).length;
             const downIn3Hit = holes.filter(hole => hole.downIn3).length;
             
-            document.getElementById('totalScore').textContent = totalScore;
-            document.getElementById('totalPutts').textContent = totalPutts;
-            document.getElementById('fairwaysHit').textContent = `${fairwaysHit}/18`;
-            document.getElementById('greensHit').textContent = `${greensHit}/18`;
-            document.getElementById('reg100Hit').textContent = `${reg100Hit}/18`;
-            document.getElementById('reg50Hit').textContent = `${reg50Hit}/18`;
-            document.getElementById('reg25Hit').textContent = `${reg25Hit}/18`;
-            document.getElementById('downIn3Hit').textContent = `${downIn3Hit}/18`;
-            document.getElementById('holesCompleted').textContent = holesCompleted;
-            document.getElementById('holesCompletedBtn').textContent = holesCompleted;
-            document.getElementById('progressFill').style.width = `${(holesCompleted / 18) * 100}%`;
+            // Safely update elements only if they exist
+            const scoreEl = document.getElementById('totalScore');
+            const puttsEl = document.getElementById('totalPutts');
+            const fairwaysEl = document.getElementById('fairwaysHit');
+            const greensEl = document.getElementById('greensHit');
+            const reg100El = document.getElementById('reg100Hit');
+            const reg50El = document.getElementById('reg50Hit');
+            const reg25El = document.getElementById('reg25Hit');
+            const downIn3El = document.getElementById('downIn3Hit');
+            const holesCompletedEl = document.getElementById('holesCompleted');
+            const holesCompletedBtnEl = document.getElementById('holesCompletedBtn');
+            const progressEl = document.getElementById('progressFill');
+            
+            if (scoreEl) scoreEl.textContent = totalScore;
+            if (puttsEl) puttsEl.textContent = totalPutts;
+            if (fairwaysEl) fairwaysEl.textContent = `${fairwaysHit}/18`;
+            if (greensEl) greensEl.textContent = `${greensHit}/18`;
+            if (reg100El) reg100El.textContent = `${reg100Hit}/18`;
+            if (reg50El) reg50El.textContent = `${reg50Hit}/18`;
+            if (reg25El) reg25El.textContent = `${reg25Hit}/18`;
+            if (downIn3El) downIn3El.textContent = `${downIn3Hit}/18`;
+            if (holesCompletedEl) holesCompletedEl.textContent = holesCompleted;
+            if (holesCompletedBtnEl) holesCompletedBtnEl.textContent = holesCompleted;
+            if (progressEl) progressEl.style.width = `${(holesCompleted / 18) * 100}%`;
             
             // Always show save button, but change text based on completion
             const saveBtn = document.getElementById('saveRoundBtn');
-            if (holesCompleted === 18) {
-                saveBtn.textContent = 'Save Complete Round (18/18 holes)';
-                saveBtn.style.background = 'linear-gradient(135deg, #2c5f2d, #4a8c4a)';
-            } else if (holesCompleted > 0) {
-                saveBtn.textContent = `Save Partial Round (${holesCompleted}/18 holes)`;
-                saveBtn.style.background = 'linear-gradient(135deg, #6c757d, #5a6268)';
-            } else {
-                saveBtn.textContent = 'Save Round (0/18 holes)';
-                saveBtn.style.background = 'linear-gradient(135deg, #6c757d, #5a6268)';
+            if (saveBtn) {
+                if (holesCompleted === 18) {
+                    saveBtn.textContent = 'Save Complete Round (18/18 holes)';
+                    saveBtn.style.background = 'linear-gradient(135deg, #2c5f2d, #4a8c4a)';
+                } else if (holesCompleted > 0) {
+                    saveBtn.textContent = `Save Partial Round (${holesCompleted}/18 holes)`;
+                    saveBtn.style.background = 'linear-gradient(135deg, #6c757d, #5a6268)';
+                } else {
+                    saveBtn.textContent = 'Save Round (0/18 holes)';
+                    saveBtn.style.background = 'linear-gradient(135deg, #6c757d, #5a6268)';
+                }
             }
         }
 
@@ -889,32 +913,14 @@
             // Filter rounds by selected course
             const filteredRounds = selectedCourse === 'all' ? rounds : rounds.filter(round => round.courseName === selectedCourse);
             
-            // Use sample data if no real data exists
-            if (filteredRounds.length === 0 && rounds.length === 0) {
-                // Sample data for demonstration
-                const sampleRounds = [
-                    { score: 89, putts: 34, fairways: 7, greens: 5, downIn3: 11, chipOn: 6, reg100: 13, reg50: 9, reg25: 6, drops: 2, topped: 1, shortPutts: 4 },
-                    { score: 92, putts: 36, fairways: 6, greens: 4, downIn3: 10, chipOn: 5, reg100: 12, reg50: 8, reg25: 5, drops: 3, topped: 2, shortPutts: 3 },
-                    { score: 87, putts: 32, fairways: 9, greens: 7, downIn3: 13, chipOn: 8, reg100: 15, reg50: 11, reg25: 8, drops: 1, topped: 0, shortPutts: 6 },
-                    { score: 85, putts: 33, fairways: 8, greens: 6, downIn3: 12, chipOn: 7, reg100: 14, reg50: 10, reg25: 7, drops: 1, topped: 1, shortPutts: 5 },
-                    { score: 91, putts: 35, fairways: 5, greens: 3, downIn3: 9, chipOn: 4, reg100: 11, reg50: 7, reg25: 4, drops: 4, topped: 2, shortPutts: 2 },
-                    { score: 83, putts: 31, fairways: 10, greens: 8, downIn3: 14, chipOn: 9, reg100: 16, reg50: 12, reg25: 9, drops: 0, topped: 0, shortPutts: 7 },
-                    { score: 88, putts: 33, fairways: 7, greens: 5, downIn3: 11, chipOn: 6, reg100: 13, reg50: 9, reg25: 6, drops: 2, topped: 1, shortPutts: 4 },
-                    { score: 86, putts: 32, fairways: 8, greens: 6, downIn3: 12, chipOn: 7, reg100: 14, reg50: 10, reg25: 7, drops: 1, topped: 1, shortPutts: 5 },
-                    { score: 94, putts: 37, fairways: 4, greens: 2, downIn3: 8, chipOn: 3, reg100: 10, reg50: 6, reg25: 3, drops: 5, topped: 3, shortPutts: 1 },
-                    { score: 90, putts: 34, fairways: 6, greens: 4, downIn3: 10, chipOn: 5, reg100: 12, reg50: 8, reg25: 5, drops: 3, topped: 2, shortPutts: 3 }
-                ];
-                
-                displayTrends(sampleRounds, true);
-                return;
-            }
-
             if (filteredRounds.length === 0) {
-                document.getElementById('trendsList').innerHTML = `<p style="text-align: center; color: #666;">No rounds found for ${selectedCourse}</p>`;
+                document.getElementById('trendsList').innerHTML = rounds.length === 0 ? 
+                    '<p style="text-align: center; color: #666;">No rounds recorded yet. Start playing to see your trends!</p>' :
+                    `<p style="text-align: center; color: #666;">No rounds found for ${selectedCourse}</p>`;
                 return;
             }
 
-            displayTrends(filteredRounds, false);
+            displayTrends(filteredRounds);
         }
 
         function displayTrends(rounds, isSample) {
@@ -991,10 +997,16 @@
             const debugNote = !isSample && totalChipOn > 0 ? 
                 `<p style="text-align: center; color: #999; font-size: 12px; margin-bottom: 10px;">Debug: totalChipOn=${totalChipOn}, totalHoles=${totalHolesPlayed}</p>` : '';
 
+            // Debug info for chip on - let's see what's happening
+            console.log('Debug chip on calculation:');
+            allRounds.forEach((round, index) => {
+                console.log(`Round ${index + 1}: chipOn = ${round.chipOn || 0}`);
+            });
+            console.log(`Total chipOn: ${totalChipOn}, Total holes: ${totalHolesPlayed}`);
+
             trendsList.innerHTML = `
                 ${sampleNote}
                 ${partialRoundsNote}
-                ${debugNote}
                 <div class="trend-item">
                     <span>Average Score</span>
                     <span class="trend-value">${completeRounds.length > 0 ? avgScore.toFixed(1) : 'No complete rounds'}${scoreImprovement}</span>
@@ -1016,7 +1028,7 @@
                     <span class="trend-value">${totalDownIn3}/${totalHolesPlayed} (${downIn3Pct.toFixed(0)}%)</span>
                 </div>
                 <div class="trend-item">
-                    <span>Chip On (1 shot)</span>
+                    <span>Chip On (1 shot) - Debug: ${totalChipOn}</span>
                     <span class="trend-value">${totalChipOn}/${totalHolesPlayed} (${chipOnPct.toFixed(0)}%)</span>
                 </div>
                 <div class="trend-item">
