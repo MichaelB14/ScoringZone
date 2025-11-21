@@ -231,6 +231,22 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
+        .edit-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 8px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-right: 5px;
+            transition: background 0.3s;
+        }
+
+        .edit-btn:hover {
+            background: #0056b3;
+        }
+
         .delete-btn {
             background: #dc3545;
             color: white;
@@ -239,7 +255,7 @@
             padding: 5px 8px;
             font-size: 14px;
             cursor: pointer;
-            margin-left: 10px;
+            margin-left: 5px;
             transition: background 0.3s;
         }
 
@@ -371,15 +387,15 @@
                 
                 <div class="form-group">
                     <label>Course Name</label>
-                    <select id="courseSelect" onchange="selectCourse()">
+                    <select id="courseSelect" onchange="selectCourse(); autoSaveRound();">
                         <option value="">Select a course or type new one...</option>
                     </select>
-                    <input type="text" id="courseName" placeholder="Or type new course name" style="margin-top: 10px;">
+                    <input type="text" id="courseName" placeholder="Or type new course name" style="margin-top: 10px;" oninput="autoSaveRound()">
                 </div>
 
                 <div class="form-group">
                     <label>Date</label>
-                    <input type="date" id="roundDate">
+                    <input type="date" id="roundDate" onchange="autoSaveRound()">
                 </div>
 
                 <div class="form-group">
@@ -543,7 +559,43 @@
             loadTrends();
             selectHole(1);
             populateCourseList();
+            checkForInProgressRound();
         });
+
+        function checkForInProgressRound() {
+            const inProgress = JSON.parse(localStorage.getItem('roundInProgress') || 'null');
+            if (inProgress && (Object.keys(inProgress.holes).length > 0 || inProgress.courseName)) {
+                const holesCompleted = Object.keys(inProgress.holes).length;
+                if (confirm(`Continue your round in progress?\n\nCourse: ${inProgress.courseName || 'Unnamed'}\nHoles completed: ${holesCompleted}/18\n\nTap OK to continue, Cancel to start fresh.`)) {
+                    // Restore the in-progress round
+                    currentRound = inProgress;
+                    document.getElementById('courseName').value = inProgress.courseName || '';
+                    document.getElementById('roundDate').value = inProgress.date || new Date().toISOString().split('T')[0];
+                    
+                    // Update hole buttons to show completed holes
+                    Object.keys(inProgress.holes).forEach(holeNum => {
+                        document.querySelectorAll('.hole-btn')[holeNum - 1].classList.add('completed');
+                    });
+                    
+                    // Select the next incomplete hole or hole 1 if all are complete
+                    const nextHole = holesCompleted < 18 ? holesCompleted + 1 : 1;
+                    selectHole(nextHole);
+                    updateRoundSummary();
+                } else {
+                    // Clear the in-progress round
+                    localStorage.removeItem('roundInProgress');
+                }
+            }
+        }
+
+        function autoSaveRound() {
+            const roundData = {
+                holes: currentRound.holes,
+                courseName: document.getElementById('courseName').value,
+                date: document.getElementById('roundDate').value
+            };
+            localStorage.setItem('roundInProgress', JSON.stringify(roundData));
+        }
 
         function populateCourseList() {
             const rounds = JSON.parse(localStorage.getItem('golfRounds') || '[]');
@@ -683,6 +735,9 @@
             // Mark hole as completed
             document.querySelectorAll('.hole-btn')[selectedHole - 1].classList.add('completed');
             
+            // Auto-save after each hole
+            autoSaveRound();
+            
             // Update summary
             updateRoundSummary();
             
@@ -805,6 +860,9 @@
             });
             document.getElementById('holeDataEntry').classList.remove('active');
             updateRoundSummary();
+
+            // Clear the auto-saved round since it's now completed
+            localStorage.removeItem('roundInProgress');
 
             alert('Round saved successfully!');
             populateCourseList(); // Update course lists
