@@ -239,7 +239,6 @@
             padding: 5px 8px;
             font-size: 14px;
             cursor: pointer;
-            margin-right: 5px;
             transition: background 0.3s;
         }
 
@@ -255,7 +254,6 @@
             padding: 5px 8px;
             font-size: 14px;
             cursor: pointer;
-            margin-left: 5px;
             transition: background 0.3s;
         }
 
@@ -274,6 +272,7 @@
         .history-header > div {
             display: flex;
             align-items: center;
+            gap: 5px;
         }
 
         .history-stats {
@@ -426,9 +425,21 @@
                     <div class="hole-title">Hole <span id="currentHole">1</span></div>
                     
                     <div class="stat-group">
+                        <h4>Score vs Par</h4>
+                        <div class="toggle-buttons">
+                            <button class="toggle-btn" data-stat="birdie" onclick="toggleScoreStat(this)">Birdie</button>
+                            <button class="toggle-btn" data-stat="par" onclick="toggleScoreStat(this)">Par</button>
+                            <button class="toggle-btn" data-stat="bogey" onclick="toggleScoreStat(this)">Bogey</button>
+                            <button class="toggle-btn" data-stat="doubleBogey" onclick="toggleScoreStat(this)">2 Bogey</button>
+                            <button class="toggle-btn" data-stat="tripleBogey" onclick="toggleScoreStat(this)">3+ Bogey</button>
+                        </div>
+                    </div>
+
+                    <div class="stat-group">
                         <h4>Distance Regulation</h4>
                         <div class="toggle-buttons">
                             <button class="toggle-btn" data-stat="100yd" onclick="toggleStat(this)">100yd ✓</button>
+                            <button class="toggle-btn" data-stat="75yd" onclick="toggleStat(this)">75yd ✓</button>
                             <button class="toggle-btn" data-stat="50yd" onclick="toggleStat(this)">50yd ✓</button>
                             <button class="toggle-btn" data-stat="25yd" onclick="toggleStat(this)">25yd ✓</button>
                             <button class="toggle-btn" data-stat="gir" onclick="toggleStat(this)">GIR ✓</button>
@@ -680,22 +691,34 @@
             
             // Auto-select logic for distance regulation
             if (stat === 'gir' && button.classList.contains('active')) {
-                // If GIR is selected, automatically select 100yd, 50yd, and 25yd
+                // If GIR is selected, automatically select 100yd, 75yd, 50yd, and 25yd
                 document.querySelector('[data-stat="100yd"]').classList.add('active');
+                document.querySelector('[data-stat="75yd"]').classList.add('active');
                 document.querySelector('[data-stat="50yd"]').classList.add('active');
                 document.querySelector('[data-stat="25yd"]').classList.add('active');
+            } else if (stat === '75yd' && button.classList.contains('active')) {
+                // If 75yd is selected, automatically select 100yd
+                document.querySelector('[data-stat="100yd"]').classList.add('active');
             } else if (stat === '50yd' && button.classList.contains('active')) {
-                // If 50yd is selected, automatically select 100yd
+                // If 50yd is selected, automatically select 75yd and 100yd
+                document.querySelector('[data-stat="75yd"]').classList.add('active');
                 document.querySelector('[data-stat="100yd"]').classList.add('active');
             } else if (stat === '25yd' && button.classList.contains('active')) {
-                // If 25yd is selected, automatically select 50yd and 100yd
+                // If 25yd is selected, automatically select 50yd, 75yd and 100yd
                 document.querySelector('[data-stat="50yd"]').classList.add('active');
+                document.querySelector('[data-stat="75yd"]').classList.add('active');
                 document.querySelector('[data-stat="100yd"]').classList.add('active');
             }
             
             // Deselection logic - if turning off a regulation, turn off the more restrictive ones
             if (stat === '100yd' && !button.classList.contains('active')) {
-                // If 100yd is turned off, turn off 50yd and 25yd
+                // If 100yd is turned off, turn off 75yd, 50yd and 25yd
+                document.querySelector('[data-stat="75yd"]').classList.remove('active');
+                document.querySelector('[data-stat="50yd"]').classList.remove('active');
+                document.querySelector('[data-stat="25yd"]').classList.remove('active');
+                document.querySelector('[data-stat="gir"]').classList.remove('active');
+            } else if (stat === '75yd' && !button.classList.contains('active')) {
+                // If 75yd is turned off, turn off 50yd, 25yd and GIR
                 document.querySelector('[data-stat="50yd"]').classList.remove('active');
                 document.querySelector('[data-stat="25yd"]').classList.remove('active');
                 document.querySelector('[data-stat="gir"]').classList.remove('active');
@@ -709,6 +732,16 @@
             }
         }
 
+        function toggleScoreStat(button) {
+            // Clear all other score stats first (only one can be selected)
+            document.querySelectorAll('[data-stat="birdie"], [data-stat="par"], [data-stat="bogey"], [data-stat="doubleBogey"], [data-stat="tripleBogey"]').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Then set the clicked one as active
+            button.classList.add('active');
+        }
+
         function toggleBadStat(button) {
             button.classList.toggle('bad');
         }
@@ -716,6 +749,7 @@
         function saveHoleData() {
             const holeData = {
                 '100yd': document.querySelector('[data-stat="100yd"]').classList.contains('active'),
+                '75yd': document.querySelector('[data-stat="75yd"]').classList.contains('active'),
                 '50yd': document.querySelector('[data-stat="50yd"]').classList.contains('active'),
                 '25yd': document.querySelector('[data-stat="25yd"]').classList.contains('active'),
                 gir: document.querySelector('[data-stat="gir"]').classList.contains('active'),
@@ -723,6 +757,11 @@
                 green: document.querySelector('[data-stat="gir"]').classList.contains('active'), // Use GIR for green tracking
                 chipOn: document.querySelector('[data-stat="chipOn"]').classList.contains('active'),
                 downIn3: document.querySelector('[data-stat="downIn3"]').classList.contains('active'),
+                birdie: document.querySelector('[data-stat="birdie"]').classList.contains('active'),
+                par: document.querySelector('[data-stat="par"]').classList.contains('active'),
+                bogey: document.querySelector('[data-stat="bogey"]').classList.contains('active'),
+                doubleBogey: document.querySelector('[data-stat="doubleBogey"]').classList.contains('active'),
+                tripleBogey: document.querySelector('[data-stat="tripleBogey"]').classList.contains('active'),
                 drops: document.querySelector('[data-stat="drops"]').classList.contains('bad') ? 1 : 0,
                 topped: document.querySelector('[data-stat="topped"]').classList.contains('bad') ? 1 : 0,
                 putts: parseInt(document.getElementById('holePutts').value) || 2,
@@ -1086,7 +1125,7 @@
                     <span class="trend-value">${totalDownIn3}/${totalHolesPlayed} (${downIn3Pct.toFixed(0)}%)</span>
                 </div>
                 <div class="trend-item">
-                    <span>Chip On (1 shot) - Debug: ${totalChipOn}</span>
+                    <span>Chip On (1 shot)</span>
                     <span class="trend-value">${totalChipOn}/${totalHolesPlayed} (${chipOnPct.toFixed(0)}%)</span>
                 </div>
                 <div class="trend-item">
